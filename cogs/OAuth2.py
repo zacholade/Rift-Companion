@@ -73,25 +73,31 @@ def oauth2_server(bot, oauth2):
             client_secret=oauth2.client_secret,
             code=code
         )
-
+        user_id = None
+        connection = None
         if 'identify' in token['scope']:
             user_id = get_user(token, discord)
 
         # If identify wasn't in the scope, then we have no idea what account is linked to the connection.
         # Make sure we were able to extract a user id before continuing for caching.
         if 'connections' in token['scope'] and user_id:
-            get_connections(user_id, discord)
+            connection = get_connection(user_id, discord)
 
+        print(oauth2.oauth2_tokens)
+        print(bot.league_connections)
+        bot.loop.create_task(oauth2.new_connection_callback(user_id, connection))
         return redirect('https://discord.gg/SNNaN2a') # TODO Dont hard code invite url.
 
     def get_user(token, discord):
         user = discord.get(API_BASE_URL + '/users/@me').json()
         user_id = user.get('id')
+        if user_id:
+            user_id = int(user_id)
         oauth2.oauth2_tokens[user_id] = token
         return user_id
 
 
-    def get_connections(user_id, discord):
+    def get_connection(user_id, discord):
         connections = discord.get(API_BASE_URL + '/users/@me/connections').json()
         connection = None
         for n, connection_type in enumerate(connection['type'] for connection in connections):
@@ -100,8 +106,9 @@ def oauth2_server(bot, oauth2):
                 break
         if connection:
             bot.league_connections[user_id] = connection
-        return
+        return connection
         
+
     app.run('0.0.0.0', port=oauth2.port, debug=False, use_reloader=False)
 
 
@@ -118,8 +125,9 @@ class OAuth2(object):
     async def on_ready(self):
         await self.bot.loop.run_in_executor(None, oauth2_server, self.bot, self)
 
-    def auth_callback(self, token):
-        self.bot.loop.create_task(self.handle_auth(token))
+    async def new_connection_callback(self, user_id, connection):
+        user = self.bot.get_user(user_id)
+        await user.send('Connected account: ' + connection.get('name'))
 
 
 def setup(bot):
