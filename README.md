@@ -1,37 +1,7 @@
-## Welcome to GitHub Pages
+## What am I?
 
-You can use the [editor on GitHub](https://github.com/Zachy24/Rift-Companion/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+Rift Companion is an intelligent Discord bot which provides you with vital information right as you need it!
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+It has well developed discord integrations to link your **Verified** League account to the bot, thus extending its functionality. No need to write out a complicated command; just opt-in and receive automatic pre and post game analysis to help you improve faster!
 
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/Zachy24/Rift-Companion/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+[Invite the bot today!](https://discordapp.com/api/oauth2/authorize?client_id=521163284418789376&permissions=0&scope=bot)
