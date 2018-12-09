@@ -112,7 +112,7 @@ class OAuth2(object):
             await user.send(content=content, embed=embed)
 
         elif user_id and connection:
-            self.oauth2_tokens[user_id] = connection
+            self.oauth2_tokens[user_id] = connections
             user = self.bot.get_user(user_id)
             description = """Your League account, **{0}** has been linked successfully!\n\nYou may now take advantage of my **exclusive features!**""".format(connection.get('name'))
             embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('green'), url=self.authorization_url)
