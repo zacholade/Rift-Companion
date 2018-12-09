@@ -1,13 +1,17 @@
 import logging
 import typing
+import time
+import asyncio
+import aiohttp
 
 import discord
+from discord.ext import commands
 
-from flask import Flask, g, session, redirect, request, url_for, jsonify
-from requests_oauthlib import OAuth2Session
+from flask import Flask, redirect, request
+from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
+from oauthlib.common import generate_token
 
 import config
-
 
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
@@ -17,45 +21,14 @@ TOKEN_URL = API_BASE_URL + '/oauth2/token'
 def oauth2_server(bot, oauth2):
     app = Flask(__name__)
 
-    app.config['SECRET_KEY'] = oauth2.client_secret
-
-    def make_session(token=None, state=None, scope=None):
-        return OAuth2Session(
-            client_id=bot.user.id,
-            token=token,
-            state=state,
-            scope=scope,
-            redirect_uri=oauth2.redirect_url,
-            auto_refresh_kwargs={
-                'client_id': bot.user.id,
-                'client_secret': oauth2.client_secret,
-            },
-            auto_refresh_url=TOKEN_URL,
-            token_updater=token_updater
-            )
-
-    def token_updater(self, token):
-        oauth2_tokens.append(token)
-
     @app.route('/')
     def index():
-        scope = request.args.get(
-            'scope',
-            'identify connections')
-        discord = make_session(scope=scope.split(' '))
-        # Don't pass None here as the state arg and a state will be generated
-        # https://github.com/requests/requests-oauthlib/blob/master/requests_oauthlib/oauth2_session.py
-        authorization_url, state = discord.authorization_url(AUTHORIZATION_BASE_URL, None)
-        # session['oauth2_state'] = state See below for implementation of state...
-        return redirect(authorization_url)
-
+        return redirect(oauth2.authorization_url)
 
     @app.route('/callback')
     def callback():
         if request.values.get('error'):
             return request.values['error']
-
-        code = request.args.get('code')
         # TODO Implement state. Security vulnerability. 
         # https://discordapp.com/developers/docs/topics/oauth2#state-and-security
         # Supply state in args of the oauth2 request eg: &state=15773059ghq9183habn
@@ -63,71 +36,126 @@ def oauth2_server(bot, oauth2):
         # This state needs to be unique to the user. Issues happen when the user calls
         # the 'iam' command to link. If other users use the same oauth2 link, they will
         # have the wrong state and an error will be thrown.
-
-        discord = make_session() # Would pass state to your session here.
         code = request.args.get('code')
         if not code:
             return redirect('/')
-        token = discord.fetch_token(
-            TOKEN_URL,
-            client_secret=oauth2.client_secret,
-            code=code
-        )
-        user_id = None
-        connection = None
-        if 'identify' in token['scope']:
-            user_id = get_user(token, discord)
 
-        # If identify wasn't in the scope, then we have no idea what account is linked to the connection.
-        # Make sure we were able to extract a user id before continuing for caching.
-        if 'connections' in token['scope'] and user_id:
-            connection = get_connection(user_id, discord)
-
-        print(oauth2.oauth2_tokens)
-        print(bot.league_connections)
-        bot.loop.create_task(oauth2.new_connection_callback(user_id, connection))
+        bot.loop.create_task(oauth2.handle_callback(code))
         return redirect('https://discord.gg/SNNaN2a') # TODO Dont hard code invite url.
-
-    def get_user(token, discord):
-        user = discord.get(API_BASE_URL + '/users/@me').json()
-        user_id = user.get('id')
-        if user_id:
-            user_id = int(user_id)
-        oauth2.oauth2_tokens[user_id] = token
-        return user_id
-
-
-    def get_connection(user_id, discord):
-        connections = discord.get(API_BASE_URL + '/users/@me/connections').json()
-        connection = None
-        for n, connection_type in enumerate(connection['type'] for connection in connections):
-            if connection_type == 'leagueoflegends':
-                connection = connections[n]
-                break
-        if connection:
-            bot.league_connections[user_id] = connection
-        return connection
-        
 
     app.run('0.0.0.0', port=oauth2.port, debug=False, use_reloader=False)
 
 
 class OAuth2(object):
-
-    client_secret = config.DISCORD_CLIENT_SECRET
-    redirect_url = config.DISCORD_REDIRECT_URL
-    port = config.OAUTH2_PORT
-
     def __init__(self, bot):
         self.bot = bot
         self.oauth2_tokens = {}
+        self.states = []
+
+        self.client_secret = config.DISCORD_CLIENT_SECRET
+        self.redirect_uri = config.DISCORD_REDIRECT_URI
+        self.port = config.OAUTH2_PORT
+        self.scope = 'identify connections'
+
+        self.bot.assets['connect_league_to_discord'] = ('https://cdn.discordapp.com/attachments/'
+                                                        '351824177889542147/521176041901916190/'
+                                                        'connect_league_to_discord.gif'
+        )
+        self.bot.assets['connections'] = ('https://cdn.discordapp.com/attachments/'
+                                          '520352153957564444/521157265021992961/'
+                                          'discord-connections-100765371-large.jpg'
+        )
+        self.bot.assets['l_icon'] = ('https://cdn.discordapp.com/attachments/'
+                                     '520352153957564444/521159439978594315/l_icon.png'
+        )
+
+
+    @property
+    def authorization_url(self):
+        """
+        Returns an authorization url with no state and parameters specific for the scope of this oauth2 cog.
+        """
+        return self.make_authorization_url(client_id=self.bot.user.id, response_type='code',
+                                           redirect_uri=self.redirect_uri, scope=self.scope)[0]
+
+    def make_authorization_url(self, uri=AUTHORIZATION_BASE_URL, client_id=None, response_type=None,
+                               redirect_uri=None, scope=None, state=None):
+        return prepare_grant_uri(uri=uri, client_id=client_id, response_type=response_type,
+                                 redirect_uri=redirect_uri, scope=scope, state=state), state
 
     async def on_ready(self):
         await self.bot.loop.run_in_executor(None, oauth2_server, self.bot, self)
 
-    async def new_connection_callback(self, user_id, connection):
-        user = self.bot.get_user(user_id)
-        await user.send('Connected account: ' + connection.get('name'))
+    async def handle_callback(self, code):
+        token = await self.exchange_code_for_token(code)
+        identity = await self.make_api_request(token, '/users/@me')
+        connections = await self.make_api_request(token, '/users/@me/connections')
+
+        user_id = int(identity.get('id'))
+        connection = None
+        for n, connection_type in enumerate(connection['type'] for connection in connections):
+            if connection_type == 'leagueoflegends':
+                connection = connections[n]
+                break
+
+        if user_id and not connection:
+            user = self.bot.get_user(user_id)
+            content = ("**Hey {0}!** I couldn't find a League account connected to your Discord profile?\n\n"
+                       "**To link an account;**\n"
+                       "    `1.` Open and login to your __League Client__.\n"
+                       "    `2.` __On Discord__; head over to *User Settings > Connections.*\n"
+                       "    `3.` Click on the League Icon and click Enable. *(shown below)*".format(user.display_name))
+            description = """Once you have done this, [follow the authorization link again!]({1})\n
+            For anymore help, [join our support server.](https://discord.gg/SNNaN2a)""".format(user.display_name, self.authorization_url)
+            embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours['yellow'], url=self.authorization_url)
+            embed.set_image(url=self.bot.assets.get('connect_league_to_discord'))
+            await user.send(content=content, embed=embed)
+
+        elif user_id and connection:
+            self.oauth2_tokens[user_id] = connection
+            user = self.bot.get_user(user_id)
+            description = """Your League account, **{0}** has been linked successfully!\n\nYou may now take advantage of my **exclusive features!**""".format(connection.get('name'))
+            embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('green'), url=self.authorization_url)
+            embed.set_thumbnail(url=self.bot.assets.get('l_icon'))
+            # TODO Get summoner icon of the users league account.
+            await user.send(embed=embed)
+        return
+
+    async def exchange_code_for_token(self, code):
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        }
+        data = {
+            'client_id': self.bot.user.id,
+            'client_secret': self.client_secret,
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': self.redirect_uri,
+            'scope': self.scope
+        }
+        async with self.bot.session.post(TOKEN_URL, data=data, headers=headers) as response:
+            response.raise_for_status()
+            return await response.json()
+
+    async def make_api_request(self, token, endpoint):
+        user_id = None
+        connection = None
+        headers = {'Authorization': token['token_type'] + ' ' + token['access_token']}
+        async with self.bot.session.get(API_BASE_URL + endpoint, headers=headers) as response:
+            response.raise_for_status()
+            return await response.json()
+
+    @commands.command(aliases=['iam', 'add'])
+    async def link(self, ctx):
+        # Provide oauth2 link to allow access to view users connections and identify.
+        # If a connection can be found, finish here and allow callback to handle rest... 
+        # Otherwise, tell user how to add a connection and tell them to reuse this command when they have it added.
+        description = """:unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n
+        *Ensure your league account is connected to discord first.*""".format(self.authorization_url)
+        embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('yellow'), url=self.authorization_url)
+        embed.set_image(url=self.bot.assets.get('connections'))
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

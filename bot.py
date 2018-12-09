@@ -1,6 +1,7 @@
 
 # Normal Imports
 import os
+import time
 import aiohttp
 import asyncio
 import datetime
@@ -55,6 +56,13 @@ class RiftCompanion(commands.AutoShardedBot):
         self.riot = riot
         self.riot.set_riot_api_key(config.riot_api_key)
         self.riot.set_default_region("EUW")
+
+        self.assets = {}
+        self.colours = {
+            'yellow': discord.Colour(0xFFF14A),
+            'green': discord.Colour(0x85DE6A),
+            'red': discord.Colour(0xC91A42)
+        }
 
         try:
             for extension in extensions:
@@ -114,6 +122,20 @@ class RiftCompanion(commands.AutoShardedBot):
 
     async def on_member_update(self, before, after):
         pass
+
+    def set_footer(self, embed, ctx):
+        if not embed.footer:
+            formatted_time = time.strftime("%a %d %b at %H:%M GMT", time.gmtime(time.time()))
+            if isinstance(ctx, discord.ext.commands.Context):
+                user = ctx.author
+                embed.set_footer(text='{0} | {1}'.format(user.display_name, formatted_time), icon_url=user.avatar_url)
+            elif isinstance(ctx, discord.TextChannel):
+                guild = ctx.guild
+                embed.set_footer(text='{0} | {1}'.format(guild.name, formatted_time), icon_url=guild.icon_url)
+            elif isinstance(ctx, discord.DMChannel):
+                user = ctx.recipient
+                embed.set_footer(text='{0} | {1}'.format(user.display_name, formatted_time), icon_url=user.avatar_url)
+        return embed
 
 bot = RiftCompanion()
 bot.run()
