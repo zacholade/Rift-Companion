@@ -12,6 +12,7 @@ from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
 from oauthlib.common import generate_token
 
 import config
+from .utils.SQL import ConnectionsDatabase
 
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
@@ -49,8 +50,7 @@ def oauth2_server(bot, oauth2):
 class OAuth2(object):
     def __init__(self, bot):
         self.bot = bot
-        self.oauth2_tokens = {}
-        self.states = []
+        self.connections_db = ConnectionsDatabase('data/connections.db')
 
         self.client_secret = config.DISCORD_CLIENT_SECRET
         self.redirect_uri = config.DISCORD_REDIRECT_URI
@@ -105,14 +105,15 @@ class OAuth2(object):
                        "    `1.` Open and login to your __League Client__.\n"
                        "    `2.` __On Discord__; head over to *User Settings > Connections.*\n"
                        "    `3.` Click on the League Icon and click Enable. *(shown below)*".format(user.display_name))
-            description = """Once you have done this, [follow the authorization link again!]({1})\n
+            description = """Once you have done this; [follow the authorization link again!]({1})\n
             For anymore help, [join our support server.](https://discord.gg/SNNaN2a)""".format(user.display_name, self.authorization_url)
             embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours['yellow'], url=self.authorization_url)
             embed.set_image(url=self.bot.assets.get('connect_league_to_discord'))
             await user.send(content=content, embed=embed)
 
         elif user_id and connection:
-            self.oauth2_tokens[user_id] = connections
+            for connection in connections:
+                self.connections_db.add_connection(user_id, connection)
             user = self.bot.get_user(user_id)
             description = """Your League account, **{0}** has been linked successfully!\n\nYou may now take advantage of my **exclusive features!**""".format(connection.get('name'))
             embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('green'), url=self.authorization_url)
@@ -151,8 +152,8 @@ class OAuth2(object):
         # Provide oauth2 link to allow access to view users connections and identify.
         # If a connection can be found, finish here and allow callback to handle rest... 
         # Otherwise, tell user how to add a connection and tell them to reuse this command when they have it added.
-        description = """:unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n
-        *Ensure your league account is connected to discord first.*""".format(self.authorization_url)
+        description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n"
+        "*Ensure your league account is connected to discord first.*".format(self.authorization_url))
         embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('yellow'), url=self.authorization_url)
         embed.set_image(url=self.bot.assets.get('connections'))
         await ctx.send(embed=embed)
