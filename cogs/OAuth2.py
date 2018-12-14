@@ -12,7 +12,6 @@ from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
 from oauthlib.common import generate_token
 
 import config
-from .utils.SQL import ConnectionsDatabase
 
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
@@ -50,7 +49,6 @@ def oauth2_server(bot, oauth2):
 class OAuth2(object):
     def __init__(self, bot):
         self.bot = bot
-        self.connections_db = ConnectionsDatabase('data/connections.db')
 
         self.client_secret = config.DISCORD_CLIENT_SECRET
         self.redirect_uri = config.DISCORD_REDIRECT_URI
@@ -80,6 +78,12 @@ class OAuth2(object):
 
     def make_authorization_url(self, uri=AUTHORIZATION_BASE_URL, client_id=None, response_type=None,
                                redirect_uri=None, scope=None, state=None):
+        """
+        Makes an authorization url with the provided parameters.
+        Returns:
+            :str:`authorization_url`
+            :str:`state`
+        """
         return prepare_grant_uri(uri=uri, client_id=client_id, response_type=response_type,
                                  redirect_uri=redirect_uri, scope=scope, state=state), state
 
@@ -112,14 +116,17 @@ class OAuth2(object):
             await user.send(content=content, embed=embed)
 
         elif user_id and connection:
+            print(connections)
             for connection in connections:
-                self.connections_db.add_connection(user_id, connection)
+                self.bot.users_db.add_connection(user_id, connection)
             user = self.bot.get_user(user_id)
-            description = """Your League account, **{0}** has been linked successfully!\n\nYou may now take advantage of my **exclusive features!**""".format(connection.get('name'))
+            description = """:link: Your League account, **{0}** has been linked successfully!\n\n:inbox_tray: You can now `opt-in` and receive **exclusive** pre/post-game analysis!""".format(connection.get('name'))
             embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('green'), url=self.authorization_url)
             embed.set_thumbnail(url=self.bot.assets.get('l_icon'))
+            embed.set_footer(text='You can opt-out at anytime...')
             # TODO Get summoner icon of the users league account.
-            await user.send(embed=embed)
+            message = await user.send(embed=embed)
+            await self.bot.get_cog('OptIn').optinate(message)
         return
 
     async def exchange_code_for_token(self, code):
@@ -152,11 +159,12 @@ class OAuth2(object):
         # Provide oauth2 link to allow access to view users connections and identify.
         # If a connection can be found, finish here and allow callback to handle rest... 
         # Otherwise, tell user how to add a connection and tell them to reuse this command when they have it added.
-        description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n"
+        description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n\n"
         "*Ensure your league account is connected to discord first.*".format(self.authorization_url))
         embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('yellow'), url=self.authorization_url)
         embed.set_image(url=self.bot.assets.get('connections'))
         await ctx.send(embed=embed)
+        print(self.bot.user_db.get_connection(ctx.author.id, 'leagueoflegends'))
 
 
 def setup(bot):

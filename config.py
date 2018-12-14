@@ -2,7 +2,8 @@
 debug_mode = True
 
 # API Keys
-riot_api_key = 'RGAPI-a5d2b61a-b98a-4e3e-bf0c-45915f2eeb6a'
+riot_api_key = 'RGAPI-a1e35343-f66e-4756-80b7-646b0d7283e3'
+championgg_api_key = 'e31f13db144c076cfff59aaa189da26e'
 
 # Discord
 discord_prefix = '!'

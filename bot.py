@@ -14,6 +14,7 @@ import cassiopeia as riot
 
 # Local Imports
 import config
+from cogs.utils.SQL import UsersDatabase
 
 # Logging
 import logging
@@ -37,8 +38,42 @@ Made possible with:
 '''
 
 extensions = [
-    'cogs.OAuth2'
+    'cogs.OAuth2',
+    'cogs.OptIn'
 ]
+
+def get_cass_config():
+    return {
+        "global": {
+            "version_from_match": "patch",
+            "default_region": "EUW",
+            "enable_ghost_loading": True
+        },
+        "plugins": {},
+        "pipeline": {
+            "Cache": {},
+            "SimpleKVDiskStore": {
+                "package": "cassiopeia_diskstore",
+                "path": "/data/"
+            },
+            "DDragon": {},
+            "RiotAPI": {
+                "api_key": config.riot_api_key,
+                "limit_sharing": 1.0, # Multiple servers sharing one api key.
+                "request_by_id": True, # Defaults to True
+            },
+            "ChampionGG": {
+                "package": "cassiopeia_championgg",
+                "api_key": config.championgg_api_key
+            },
+        },
+        "logging": {
+            "print_calls": True,
+            "print_riot_api_key": False,
+            "default": "WARNING",
+            "core": "WARNING"
+        }
+    }
 
 class RiftCompanion(commands.AutoShardedBot):
     def __init__(self):
@@ -51,7 +86,7 @@ class RiftCompanion(commands.AutoShardedBot):
         self.debug_mode = config.debug_mode
         self.session = aiohttp.ClientSession(loop=self.loop)
 
-        self.league_connections = {}
+        self.users_db = UsersDatabase('data/users.db')
 
         self.riot = riot
         self.riot.set_riot_api_key(config.riot_api_key)
@@ -112,12 +147,16 @@ class RiftCompanion(commands.AutoShardedBot):
             await bot.change_presence(status=discord.Status.online, game=game)
         except TypeError: # Backwards compatability
             await bot.change_presence(status=discord.Status.online, activity=game)
-    
 
+    @commands.command()
     async def restart(self, extension):
         """
         Used to reload an extension.
         """
+        print(bot.extensions)
+        self.bot.unload_extension(extension)
+        print(bot.extensions)
+        self.bot.load_extension(extension)
         print(bot.extensions)
 
     async def on_member_update(self, before, after):
