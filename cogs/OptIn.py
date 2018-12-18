@@ -1,6 +1,9 @@
 import discord
 from discord.ext import commands
 
+from .utils.checks import (
+    has_connection
+)
 
 class OptIn(object):
     def __init__(self, bot):
@@ -9,10 +12,13 @@ class OptIn(object):
             ('\N{INBOX TRAY}', self._optin),
             ('\N{OUTBOX TRAY}', self._optout)
         ]
+        self.bot.assets['show_game_status'] = ('https://cdn.discordapp.com/attachments/'
+                                               '520352153957564444/524316282477346826/'
+                                               'show_playing_status.gif')
 
     async def optinate(self, message, optin=True, optout=False):
         """
-        Adds optin and optoutreaction emojis to a message!
+        Adds optin and optout reaction emojis to a message!
         """
         if optin:
             await message.add_reaction(self.reaction_emojis[0][0])
@@ -74,24 +80,27 @@ class OptIn(object):
         if not check_is_correct_message(message):
             return
 
-        await self._optin(user)
-    
-    async def _optin(self, ctx=None, user, pregame=True, postgame=True):
-        self.bot.users_db.add_opt_in(user.id, pregame=True, postgame=True)
-        pregame, postgame = self.bot.users_db.get_opt_in(user.id)
+        await self._optin(channel, user)
 
-        description = 
-        embed = discord.embed(description=description, colour=self.bot.colours.get('green'))
-        destination = ctx if ctx else user
-        await destination.send(embed)
+    async def _optin(self, invoked_channel, user):
+        self.bot.database.add_opt_in(user.id, opted_in=True)
 
-    
+        description = (':inbox_tray: You are now opted in for **automatic game analysis!**.\n\n'
+                       ':video_game: Make sure you are **online** and display your **activity** on discord '
+                       'to receive this analysis automatically! *(shown below)*')
+        embed = discord.Embed(title="League Game Analysis", description=description, colour=self.bot.colours.get('green'))
+        embed.set_image(url=self.bot.assets.get('show_game_status'))
+        await invoked_channel.send(embed=embed)
+
+
     async def _optout(self, user):
         pass
 
+    @has_connection('leagueoflegends')
     @commands.command(aliases=['opt-in','opt','imin','sub','subscribe'])
     async def optin(self, ctx):
-        await self._optin(ctx, user=ctx.author)
+        await self._optin(ctx, ctx.author)
+
 
 def setup(bot):
     n = OptIn(bot)

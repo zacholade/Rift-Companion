@@ -15,7 +15,6 @@ class UsersDatabase():
         self.cursor.execute("""SELECT name FROM sqlite_master WHERE type='table' AND name='connections'""")
         row = self.cursor.fetchone()
         if not row:
-            print('oof')
             self.create_tables()
 
             with self.connection:
@@ -52,10 +51,20 @@ class UsersDatabase():
 
         with self.connection:
             self.cursor.execute(
-                """CREATE TABLE IF NOT EXISTS opt_in (
+                """CREATE TABLE IF NOT EXISTS users (
                     user_id UNSUGNED INTEGER PRIMARY KEY NOT NULL,
-                    pregame BOOLEAN NOT NULL,
-                    postgame BOOLEAN NOT NULL
+                    opted_in BOOLEAN NOT NULL DEFAULT FALSE
+                )""")
+
+        with self.connection:
+            self.cursor.execute(
+                """CREATE TABLE IF NOT EXISTS oauth_tokens (
+                    user_id UNSIGNED INTEGER PRIMARY KEY NOT NULL,
+                    access_token TEXT NOT NULL,
+                    token_type TEXT NOT NULL,
+                    expires_in timestamp,
+                    refresh_token TEXT NOT NULL,
+                    scope TEXT NOT NULL
                 )""")
         return
 
@@ -84,45 +93,93 @@ class UsersDatabase():
         else: # Connection for this user_id and type already exist. Update it with new info.
             with self.connection:
                 self.cursor.execute(
-                    """UPDATE connections SET verified=?, name=?, show_activity=?, friend_sync=?, id=?, visibility=? WHERE type=? AND user_id=?""",(
-                        c['verified'],
-                        c['name'],
-                        c['show_activity'],
-                        c['friend_sync'],
-                        c['id'],
-                        c['visibility'],
-                        c['type'],
-                        user_id
+                    """UPDATE connections SET 
+                        verified=?,
+                        name=?,
+                        show_activity=?,
+                        friend_sync=?,
+                        id=?,
+                        visibility=?
+                        WHERE type=? AND user_id=?""",(
+                            c['verified'],
+                            c['name'],
+                            c['show_activity'],
+                            c['friend_sync'],
+                            c['id'],
+                            c['visibility'],
+                            c['type'],
+                            user_id
                     ))
 
     def get_connection(self, user_id, c_type):
         self.cursor.execute("""SELECT * FROM connections WHERE user_id=? AND type=?""", (user_id, c_type))
         row = self.cursor.fetchone()
-        row_dict = dict()
         if row:
-            row_dict = dict(zip([c[0] for c in self.cursor.description], row))
-        return row_dict
+            return dict(zip([c[0] for c in self.cursor.description], row))
+        return None
 
-    def get_opt_in(self, user_id):
-        self.cursor.execute("""SELECT * FROM opt_in WHERE user_id=?""", (user_id,))
-        row = self.cursor.fetchone()
-        if row:
-            # (pregame, postgame)
-            return (bool(row[1]), bool(row[2]))
-        return (False, False)
-
-    def add_opt_in(self, user_id, pregame=False, postgame=False):
-        self.cursor.execute("""SELECT * FROM opt_in WHERE user_id=?""", (user_id,))
+    def add_opt_in(self, user_id, opted_in=False):
+        self.cursor.execute("""SELECT * FROM users WHERE user_id=?""", (user_id,))
         row = self.cursor.fetchone()
         if not row:
             with self.connection:
-                self.cursor.execute("""INSERT INTO opt_in VALUES (?,?,?)""", (user_id, pregame, postgame))
+                self.cursor.execute("""INSERT INTO users VALUES (?,?)""", (user_id, opted_in))
         else:
             with self.connection:
-                self.cursor.execute("""UPDATE opt_in SET pregame=?, postgame=? WHERE user_id=?""",(
-                    pregame,
-                    postgame,
+                self.cursor.execute("""UPDATE users SET opted_in=? WHERE user_id=?""",(
+                    opted_in,
                     user_id
                 ))
+
+    def get_opt_in(self, user_id):
+        self.cursor.execute("""SELECT * FROM users WHERE user_id=?""", (user_id,))
+        row = self.cursor.fetchone()
+        if row:
+            return bool(row[0])
+        return False
+
+    def add_oauth_token(self, user_id, token):
+        self.cursor.execute("""SELECT * FROM oauth_tokens WHERE user_id=?""", (user_id,))
+        row = self.cursor.fetchone()
+        if not row:
+            with self.connection:
+                self.cursor.execute("""INSERT INTO oauth_tokens VALUES (?,?,?,?,?,?)""", (
+                    user_id,
+                    token['access_token'],
+                    token['token_type'],
+                    token['expires_in'],
+                    token['refresh_token'],
+                    token['scope']
+                ))
+        else:
+            with self.connection:
+                self.cursor.execute("""UPDATE oauth_tokens SET 
+                    access_token=?,
+                    token_type=?,
+                    expires_in=?,
+                    refresh_token=?,
+                    scope=?
+                    WHERE user_id=?""", (
+                        token['access_token'],
+                        token['token_type'],
+                        token['expires_in'],
+                        token['refresh_token'],
+                        token['scope'],
+                        user_id
+                    ))
+
+    def get_oauth_token(self, user_id):
+        self.cursor.execute("""SELECT * FROM oauth_tokens WHERE user_id=?""", (user_id,))
+        row = self.cursor.fetchone()
+        if row:
+            return {
+                'access_token': row[1],
+                'token_type': row[2],
+                'expires_in': row[3],
+                'refresh_token': row[4],
+                'scope': row[5]
+            }
+        else:
+            return None
 
 

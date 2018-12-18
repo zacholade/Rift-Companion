@@ -39,7 +39,8 @@ Made possible with:
 
 extensions = [
     'cogs.OAuth2',
-    'cogs.OptIn'
+    'cogs.OptIn',
+    'cogs.ErrorHandler'
 ]
 
 def get_cass_config():
@@ -86,7 +87,7 @@ class RiftCompanion(commands.AutoShardedBot):
         self.debug_mode = config.debug_mode
         self.session = aiohttp.ClientSession(loop=self.loop)
 
-        self.users_db = UsersDatabase('data/users.db')
+        self.database = UsersDatabase('data/rift-database.db')
 
         self.riot = riot
         self.riot.set_riot_api_key(config.riot_api_key)

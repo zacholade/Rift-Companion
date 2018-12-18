@@ -13,6 +13,10 @@ from oauthlib.common import generate_token
 
 import config
 
+from .ErrorHandler import (
+    NoConnectionFound
+)
+
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
@@ -55,10 +59,6 @@ class OAuth2(object):
         self.port = config.OAUTH2_PORT
         self.scope = 'identify connections'
 
-        self.bot.assets['connect_league_to_discord'] = ('https://cdn.discordapp.com/attachments/'
-                                                        '351824177889542147/521176041901916190/'
-                                                        'connect_league_to_discord.gif'
-        )
         self.bot.assets['connections'] = ('https://cdn.discordapp.com/attachments/'
                                           '520352153957564444/521157265021992961/'
                                           'discord-connections-100765371-large.jpg'
@@ -104,6 +104,7 @@ class OAuth2(object):
 
         if user_id and not connection:
             user = self.bot.get_user(user_id)
+            raise NoConnectionFound('leagueoflegends')
             content = ("**Hey {0}!** I couldn't find a League account connected to your Discord profile?\n\n"
                        "**To link an account;**\n"
                        "    `1.` Open and login to your __League Client__.\n"
@@ -116,17 +117,23 @@ class OAuth2(object):
             await user.send(content=content, embed=embed)
 
         elif user_id and connection:
-            print(connections)
+            self.bot.database.add_oauth_token(user_id, token)
             for connection in connections:
-                self.bot.users_db.add_connection(user_id, connection)
+                self.bot.database.add_connection(user_id, connection)
             user = self.bot.get_user(user_id)
-            description = """:link: Your League account, **{0}** has been linked successfully!\n\n:inbox_tray: You can now `opt-in` and receive **exclusive** pre/post-game analysis!""".format(connection.get('name'))
+            description = (":link: Your League account, **{0}** has been linked successfully!\n\n"
+                           ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis."
+                           "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name'))
             embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('green'), url=self.authorization_url)
             embed.set_thumbnail(url=self.bot.assets.get('l_icon'))
             embed.set_footer(text='You can opt-out at anytime...')
             # TODO Get summoner icon of the users league account.
             message = await user.send(embed=embed)
             await self.bot.get_cog('OptIn').optinate(message)
+        # It would only get to here if the user used an oauth link and
+        # 'identify' wasn't in the scope. Therefore, this code is
+        # useless as we could get the connections but wouldn't know
+        # who's discord account's they are...
         return
 
     async def exchange_code_for_token(self, code):
@@ -164,7 +171,7 @@ class OAuth2(object):
         embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('yellow'), url=self.authorization_url)
         embed.set_image(url=self.bot.assets.get('connections'))
         await ctx.send(embed=embed)
-        print(self.bot.user_db.get_connection(ctx.author.id, 'leagueoflegends'))
+        print(self.bot.database.get_connection(ctx.author.id, 'leagueoflegends'))
 
 
 def setup(bot):
