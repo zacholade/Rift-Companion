@@ -13,13 +13,18 @@ from oauthlib.common import generate_token
 
 import config
 
-from .ErrorHandler import (
+from .utils.errors import (
     NoConnectionFound
 )
+from .utils.assets import colour, assets
 
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
+
+
+def extract_region_from_connection(connection):
+    pass
 
 
 def oauth2_server(bot, oauth2):
@@ -59,14 +64,7 @@ class OAuth2(object):
         self.port = config.OAUTH2_PORT
         self.scope = 'identify connections'
 
-        self.bot.assets['connections'] = ('https://cdn.discordapp.com/attachments/'
-                                          '520352153957564444/521157265021992961/'
-                                          'discord-connections-100765371-large.jpg'
-        )
-        self.bot.assets['l_icon'] = ('https://cdn.discordapp.com/attachments/'
-                                     '520352153957564444/521159439978594315/l_icon.png'
-        )
-
+        self.bot.loop.create_task(self.start_server())
 
     @property
     def authorization_url(self):
@@ -87,7 +85,8 @@ class OAuth2(object):
         return prepare_grant_uri(uri=uri, client_id=client_id, response_type=response_type,
                                  redirect_uri=redirect_uri, scope=scope, state=state), state
 
-    async def on_ready(self):
+    async def start_server(self):
+        await self.bot.wait_until_ready()
         await self.bot.loop.run_in_executor(None, oauth2_server, self.bot, self)
 
     async def handle_callback(self, code):
@@ -104,7 +103,9 @@ class OAuth2(object):
 
         if user_id and not connection:
             user = self.bot.get_user(user_id)
-            raise NoConnectionFound('leagueoflegends')
+            # TODO just raise NoConnectionFound('leagueoflegends') here instead..
+            # However this is out of a command and calls the exception_handler func.
+            # It's impossible to get ctx in exception_handler...
             content = ("**Hey {0}!** I couldn't find a League account connected to your Discord profile?\n\n"
                        "**To link an account;**\n"
                        "    `1.` Open and login to your __League Client__.\n"
@@ -112,20 +113,21 @@ class OAuth2(object):
                        "    `3.` Click on the League Icon and click Enable. *(shown below)*".format(user.display_name))
             description = """Once you have done this; [follow the authorization link again!]({1})\n
             For anymore help, [join our support server.](https://discord.gg/SNNaN2a)""".format(user.display_name, self.authorization_url)
-            embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours['yellow'], url=self.authorization_url)
-            embed.set_image(url=self.bot.assets.get('connect_league_to_discord'))
+            embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.authorization_url)
+            embed.set_image(url=assets.get('connect_league_to_discord'))
             await user.send(content=content, embed=embed)
 
         elif user_id and connection:
             self.bot.database.add_oauth_token(user_id, token)
             for connection in connections:
                 self.bot.database.add_connection(user_id, connection)
+
             user = self.bot.get_user(user_id)
             description = (":link: Your League account, **{0}** has been linked successfully!\n\n"
                            ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis."
                            "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name'))
-            embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('green'), url=self.authorization_url)
-            embed.set_thumbnail(url=self.bot.assets.get('l_icon'))
+            embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('green'), url=self.authorization_url)
+            embed.set_thumbnail(url=assets.get('l_icon'))
             embed.set_footer(text='You can opt-out at anytime...')
             # TODO Get summoner icon of the users league account.
             message = await user.send(embed=embed)
@@ -168,8 +170,8 @@ class OAuth2(object):
         # Otherwise, tell user how to add a connection and tell them to reuse this command when they have it added.
         description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n\n"
         "*Ensure your league account is connected to discord first.*".format(self.authorization_url))
-        embed = discord.Embed(title="League Account Linking", description=description, colour=self.bot.colours.get('yellow'), url=self.authorization_url)
-        embed.set_image(url=self.bot.assets.get('connections'))
+        embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.authorization_url)
+        embed.set_image(url=assets.get('connections'))
         await ctx.send(embed=embed)
         print(self.bot.database.get_connection(ctx.author.id, 'leagueoflegends'))
 

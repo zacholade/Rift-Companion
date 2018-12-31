@@ -2,8 +2,9 @@ import discord
 from discord.ext import commands
 
 from .utils.checks import (
-    has_connection
+    user_has_connection
 )
+from .utils.assets import colour, assets
 
 class OptIn(object):
     def __init__(self, bot):
@@ -12,9 +13,6 @@ class OptIn(object):
             ('\N{INBOX TRAY}', self._optin),
             ('\N{OUTBOX TRAY}', self._optout)
         ]
-        self.bot.assets['show_game_status'] = ('https://cdn.discordapp.com/attachments/'
-                                               '520352153957564444/524316282477346826/'
-                                               'show_playing_status.gif')
 
     async def optinate(self, message, optin=True, optout=False):
         """
@@ -84,23 +82,29 @@ class OptIn(object):
 
     async def _optin(self, invoked_channel, user):
         self.bot.database.add_opt_in(user.id, opted_in=True)
-
         description = (':inbox_tray: You are now opted in for **automatic game analysis!**.\n\n'
                        ':video_game: Make sure you are **online** and display your **activity** on discord '
-                       'to receive this analysis automatically! *(shown below)*')
-        embed = discord.Embed(title="League Game Analysis", description=description, colour=self.bot.colours.get('green'))
-        embed.set_image(url=self.bot.assets.get('show_game_status'))
+                       'to automatically receive this analysis! *(shown below)*')
+        embed = discord.Embed(title="League Game Analysis", description=description, colour=colour.get('green'))
+        embed.set_image(url=assets.get('show_game_status'))
         await invoked_channel.send(embed=embed)
 
 
     async def _optout(self, user):
         pass
 
-    @has_connection('leagueoflegends')
+    @user_has_connection('leagueoflegends')
     @commands.command(aliases=['opt-in','opt','imin','sub','subscribe'])
     async def optin(self, ctx):
         await self._optin(ctx, ctx.author)
 
+    @commands.group()
+    async def group(self, ctx):
+        pass
+    
+    @group.command()
+    async def command(self, ctx):
+        pass
 
 def setup(bot):
     n = OptIn(bot)

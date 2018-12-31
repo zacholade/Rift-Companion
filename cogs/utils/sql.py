@@ -35,7 +35,6 @@ class UsersDatabase():
                 ts timestamp
                 )""")
 
-        with self.connection:
             self.cursor.execute(
                 """CREATE TABLE IF NOT EXISTS connections (
                     user_id UNSIGNED INTEGER NOT NULL,
@@ -49,14 +48,12 @@ class UsersDatabase():
                     PRIMARY KEY (user_id, type)
                 )""")
 
-        with self.connection:
             self.cursor.execute(
                 """CREATE TABLE IF NOT EXISTS users (
                     user_id UNSUGNED INTEGER PRIMARY KEY NOT NULL,
                     opted_in BOOLEAN NOT NULL DEFAULT FALSE
                 )""")
 
-        with self.connection:
             self.cursor.execute(
                 """CREATE TABLE IF NOT EXISTS oauth_tokens (
                     user_id UNSIGNED INTEGER PRIMARY KEY NOT NULL,
@@ -66,7 +63,6 @@ class UsersDatabase():
                     refresh_token TEXT NOT NULL,
                     scope TEXT NOT NULL
                 )""")
-        return
 
     def _get_current_database_schema_version(self):
         self.cursor.execute("""SELECT * FROM schema_history ORDER BY schema_version DESC LIMIT 1""")
