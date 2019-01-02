@@ -1,7 +1,5 @@
 import logging
 
-from .utils.utils import calc_checksum
-
 logger = logging.getLogger('root')
 
 

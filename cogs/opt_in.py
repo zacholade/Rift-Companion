@@ -6,6 +6,7 @@ from .utils.checks import (
 )
 from .utils.assets import colour, assets
 
+
 class OptIn(object):
     def __init__(self, bot):
         self.bot = bot
@@ -20,7 +21,7 @@ class OptIn(object):
         """
         if optin:
             await message.add_reaction(self.reaction_emojis[0][0])
-        if optout:
+        elif optout:
             await message.add_reaction(self.reaction_emojis[0][0])
 
     async def on_raw_reaction_add(self, *argv):
@@ -81,7 +82,7 @@ class OptIn(object):
         await self._optin(channel, user)
 
     async def _optin(self, invoked_channel, user):
-        self.bot.database.add_opt_in(user.id, opted_in=True)
+        await self.bot.database.set_opt_in(user.id, opted_in=True)
         description = (':inbox_tray: You are now opted in for **automatic game analysis!**.\n\n'
                        ':video_game: Make sure you are **online** and display your **activity** on discord '
                        'to automatically receive this analysis! *(shown below)*')
@@ -89,22 +90,13 @@ class OptIn(object):
         embed.set_image(url=assets.get('show_game_status'))
         await invoked_channel.send(embed=embed)
 
-
     async def _optout(self, user):
-        pass
+        await self.bot.database.set_opt_in(user.id, opted_in=False)
 
     @user_has_connection('leagueoflegends')
     @commands.command(aliases=['opt-in','opt','imin','sub','subscribe'])
     async def optin(self, ctx):
         await self._optin(ctx, ctx.author)
-
-    @commands.group()
-    async def group(self, ctx):
-        pass
-    
-    @group.command()
-    async def command(self, ctx):
-        pass
 
 def setup(bot):
     n = OptIn(bot)

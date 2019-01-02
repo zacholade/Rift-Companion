@@ -10,23 +10,15 @@ import importlib
 # Dependencies
 import discord
 from discord.ext import commands
-import cassiopeia as riot
 
 # Local Imports
 import config
-from cogs.utils.SQL import UsersDatabase
 
 # Logging
 import logging
-from logging.handlers import TimedRotatingFileHandler
 import traceback
+logger = logging.getLogger(__name__)
 
-logger = logging.getLogger('root')
-logging.basicConfig(format="[%(asctime)s %(levelname)-8s %(filename)-15s:%(lineno)3s - %(funcName)-20s ] %(message)s")
-if config.debug_mode:
-    logger.setLevel(logging.DEBUG)
-else:
-    logger.setLevel(logging.INFO)
 
 description = '''
 A discord bot designed to enhance league of legends.
@@ -34,47 +26,17 @@ Made by Ghostal#0001 and snooozer#0642.
 
 Made possible with:
     - discord.py - https://github.com/Rapptz/discord.py
-    - casseopeia - https://github.com/meraki-analytics/cassiopeia
 '''
 
 extensions = [
-    'cogs.OAuth2',
-    'cogs.OptIn',
-    'cogs.ErrorHandler'
+    'cogs.sql_manager',
+    'cogs.oauth2',
+    'cogs.opt_in',
+    'cogs.emoji_manager',
+    'cogs.command_logger',
 ]
+extensions.append('cogs.error_handler') # Must be last
 
-def get_cass_config():
-    return {
-        "global": {
-            "version_from_match": "patch",
-            "default_region": "EUW",
-            "enable_ghost_loading": True
-        },
-        "plugins": {},
-        "pipeline": {
-            "Cache": {},
-            "SimpleKVDiskStore": {
-                "package": "cassiopeia_diskstore",
-                "path": "/data/"
-            },
-            "DDragon": {},
-            "RiotAPI": {
-                "api_key": config.riot_api_key,
-                "limit_sharing": 1.0, # Multiple servers sharing one api key.
-                "request_by_id": True, # Defaults to True
-            },
-            "ChampionGG": {
-                "package": "cassiopeia_championgg",
-                "api_key": config.championgg_api_key
-            },
-        },
-        "logging": {
-            "print_calls": True,
-            "print_riot_api_key": False,
-            "default": "WARNING",
-            "core": "WARNING"
-        }
-    }
 
 class RiftCompanion(commands.AutoShardedBot):
     def __init__(self):
@@ -87,23 +49,9 @@ class RiftCompanion(commands.AutoShardedBot):
         self.debug_mode = config.debug_mode
         self.session = aiohttp.ClientSession(loop=self.loop)
 
-        self.database = UsersDatabase('data/rift-database.db')
-
-        self.riot = riot
-        self.riot.set_riot_api_key(config.riot_api_key)
-        self.riot.set_default_region("EUW")
-
-        self.assets = {}
-        self.colours = {
-            'yellow': discord.Colour(0xFFF14A),
-            'green': discord.Colour(0x85DE6A),
-            'red': discord.Colour(0xC91A42)
-        }
-
         try:
             for extension in extensions:
                 self.load_extension(extension)
-            #extension = self.load_extension(error_handler)
         except Exception as e:
             exc = '{}: {}'.format(type(e).__name__, e)
             print('Failed to load extension {}\n{}'.format(extension, exc))
@@ -145,9 +93,9 @@ class RiftCompanion(commands.AutoShardedBot):
 
         game = discord.Game('Testing...')
         try:
-            await bot.change_presence(status=discord.Status.online, game=game)
+            await self.change_presence(status=discord.Status.online, game=game)
         except TypeError: # Backwards compatability
-            await bot.change_presence(status=discord.Status.online, activity=game)
+            await self.change_presence(status=discord.Status.online, activity=game)
 
     @commands.command()
     async def restart(self, extension):
@@ -176,6 +124,3 @@ class RiftCompanion(commands.AutoShardedBot):
                 user = ctx.recipient
                 embed.set_footer(text='{0} | {1}'.format(user.display_name, formatted_time), icon_url=user.avatar_url)
         return embed
-
-bot = RiftCompanion()
-bot.run()

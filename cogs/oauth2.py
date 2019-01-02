@@ -3,6 +3,7 @@ import typing
 import time
 import asyncio
 import aiohttp
+import datetime
 
 import discord
 from discord.ext import commands
@@ -118,20 +119,21 @@ class OAuth2(object):
             await user.send(content=content, embed=embed)
 
         elif user_id and connection:
-            self.bot.database.add_oauth_token(user_id, token)
+            await self.bot.database.add_oauth_token(user_id, token)
             for connection in connections:
-                self.bot.database.add_connection(user_id, connection)
+                await self.bot.database.add_connection(user_id, connection)
 
             user = self.bot.get_user(user_id)
             description = (":link: Your League account, **{0}** has been linked successfully!\n\n"
-                           ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis."
-                           "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name'))
+                           ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis. "
+                           "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name')) # TODO dont hardcore prefix
             embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('green'), url=self.authorization_url)
             embed.set_thumbnail(url=assets.get('l_icon'))
             embed.set_footer(text='You can opt-out at anytime...')
             # TODO Get summoner icon of the users league account.
             message = await user.send(embed=embed)
             await self.bot.get_cog('OptIn').optinate(message)
+            print(await self.bot.database.get_oauth_token(user_id))
         # It would only get to here if the user used an oauth link and
         # 'identify' wasn't in the scope. Therefore, this code is
         # useless as we could get the connections but wouldn't know
@@ -173,7 +175,6 @@ class OAuth2(object):
         embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.authorization_url)
         embed.set_image(url=assets.get('connections'))
         await ctx.send(embed=embed)
-        print(self.bot.database.get_connection(ctx.author.id, 'leagueoflegends'))
 
 
 def setup(bot):
