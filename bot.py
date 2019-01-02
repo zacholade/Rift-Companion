@@ -17,8 +17,6 @@ import config
 # Logging
 import logging
 import traceback
-logger = logging.getLogger(__name__)
-
 
 description = '''
 A discord bot designed to enhance league of legends.
@@ -38,7 +36,17 @@ extensions = [
 extensions.append('cogs.error_handler') # Must be last
 
 
-class RiftCompanion(commands.AutoShardedBot):
+class LoggingMixin(object):
+    @property
+    def logger(self):
+        name = '.'.join([
+            self.__module__,
+            self.__class__.__name__
+        ])
+        return logging.getLogger(name)
+
+
+class RiftCompanion(LoggingMixin, commands.AutoShardedBot):
     def __init__(self):
         super().__init__(
             command_prefix=commands.when_mentioned_or(config.discord_prefix), 
@@ -55,7 +63,7 @@ class RiftCompanion(commands.AutoShardedBot):
         except Exception as e:
             exc = '{}: {}'.format(type(e).__name__, e)
             print('Failed to load extension {}\n{}'.format(extension, exc))
-            logger.error(traceback.format_exc())
+            self.logger.error(traceback.format_exc())
 
     def run(self):
         super().run(config.discord_token, reconnect=True)

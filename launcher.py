@@ -20,11 +20,10 @@ def setup_logging():
     try:
         DEFAULT_LOGGING_FORMAT = "[%(asctime)s %(levelname)-8s %(filename)-15s:%(lineno)3s - %(funcName)-20s ] %(message)s"
 
-        logger = logging.getLogger('root')
         # logging.getLogger('discord')
         # logging.getLogger('discord.http')
 
-        # logger = logging.getLogger()
+        logger = logging.getLogger('root')
 
         logging.basicConfig(format=DEFAULT_LOGGING_FORMAT)
         if config.debug_mode:

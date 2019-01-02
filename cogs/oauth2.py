@@ -5,7 +5,6 @@ from .utils.errors import (
 )
 from .utils.assets import colour, assets
 
-import logging
 import typing
 import time
 import asyncio

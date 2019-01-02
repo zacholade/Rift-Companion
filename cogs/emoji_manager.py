@@ -1,9 +1,5 @@
 from . import BaseCog
 
-import logging
-
-logger = logging.getLogger('root')
-
 
 class EmojiManager(BaseCog):
     def __init__(self, bot):
@@ -17,7 +13,7 @@ class EmojiManager(BaseCog):
             if guild:
                 emoji_guild_pool.append(guild)
             else:
-                logger.warn('guild with id: {} in discord_emoji_pool_guild_ids was not found'.format(guild_id))
+                self.logger.warn('guild with id: {} in discord_emoji_pool_guild_ids was not found'.format(guild_id))
         self._emoji_guild_pool = emoji_guild_pool
 
 

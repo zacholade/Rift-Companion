@@ -7,8 +7,6 @@ import discord
 from discord.ext import commands
 
 import traceback
-import logging
-logger = logging.getLogger('root')
 
 
 class CommandErrorHandler(BaseCog):
@@ -40,7 +38,7 @@ class CommandErrorHandler(BaseCog):
         """
         get's invoked when there is an error outside a command
         """
-        logger.exception(event_method)
+        self.logger.exception(event_method)
 
     def exception_handler(self, loop, context):
         """
@@ -53,10 +51,10 @@ class CommandErrorHandler(BaseCog):
 
         if exception:
             tb_lines = traceback.format_exception(exception.__class__, exception, exception.__traceback__)
-            logger.error("%s\n%s", error_message, ''.join(tb_lines))
+            self.logger.error("%s\n%s", error_message, ''.join(tb_lines))
         else:
             if 'Task was destroyed but it is pending!' not in error_message:
-                logger.error(error_message)
+                self.logger.error(error_message)
 
 def setup(bot):
     n = CommandErrorHandler(bot)

@@ -1,7 +1,8 @@
 from discord.ext import commands
 
 from .errors import (
-    NoConnectionFound
+    NoConnectionFound,
+    CogNotReady
 )
 
 def user_has_connection(connection):
@@ -24,8 +25,12 @@ def cog_is_ready(cog=None):
     If a cog name is not provided, ctx.cog is used.
     """
     async def predicate(ctx):
-        cog = ctx.bot.get_cog(cog) if cog else ctx.cog
-        if not cog.is_ready:
+        _cog = ctx.bot.get_cog(cog) if cog else ctx.cog
+
+        if not _cog:
+            raise ValueError('No cog with name {} could be found.'.fomat(str(cog)))
+
+        if not _cog.is_ready:
             raise CogNotReady(ctx)
         return True
     

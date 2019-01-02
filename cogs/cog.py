@@ -1,7 +1,9 @@
+from bot import LoggingMixin
+
 import asyncio
 
 
-class BaseCog(object):
+class BaseCog(LoggingMixin):
     def __init__(self, bot):
         self.bot = bot
         self._is_ready = asyncio.Event(loop=self.bot.loop)
@@ -30,7 +32,7 @@ class BaseCog(object):
         """
         Marks the cog as not ready.
         """
-        if not self._is_ready.is_set():
+        if not self.is_ready:
             return
 
         self._is_ready.clear()
