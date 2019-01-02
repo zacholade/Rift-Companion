@@ -1,19 +1,21 @@
-import discord
-from discord.ext import commands
+from . import BaseCog
 
 from .utils.errors import *
 from .utils.assets import colour, assets
+
+import discord
+from discord.ext import commands
 
 import traceback
 import logging
 logger = logging.getLogger('root')
 
 
-class CommandErrorHandler(object):
+class CommandErrorHandler(BaseCog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         self.oauth2 = self.bot.get_cog('OAuth2')
-        bot.loop.set_exception_handler(self.exception_handler)
+        self.bot.loop.set_exception_handler(self.exception_handler)
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, NoConnectionFound):

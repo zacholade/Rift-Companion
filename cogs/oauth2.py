@@ -1,3 +1,10 @@
+from . import BaseCog
+
+from .utils.errors import (
+    NoConnectionFound
+)
+from .utils.assets import colour, assets
+
 import logging
 import typing
 import time
@@ -11,20 +18,9 @@ from flask import Flask, redirect, request
 from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
 from oauthlib.common import generate_token
 
-import config
-
-from .utils.errors import (
-    NoConnectionFound
-)
-from .utils.assets import colour, assets
-
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
-
-
-def extract_region_from_connection(connection):
-    pass
 
 
 def oauth2_server(bot, oauth2):
@@ -55,16 +51,14 @@ def oauth2_server(bot, oauth2):
     app.run('0.0.0.0', port=oauth2.port, debug=False, use_reloader=False)
 
 
-class OAuth2(object):
+class OAuth2(BaseCog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
 
-        self.client_secret = config.DISCORD_CLIENT_SECRET
-        self.redirect_uri = config.DISCORD_REDIRECT_URI
-        self.port = config.OAUTH2_PORT
+        self.client_secret = self.bot.config.DISCORD_CLIENT_SECRET
+        self.redirect_uri = self.bot.config.DISCORD_REDIRECT_URI
+        self.port = self.bot.config.OAUTH2_PORT
         self.scope = 'identify connections'
-
-        self.bot.loop.create_task(self.start_server())
 
     @property
     def authorization_url(self):
@@ -85,8 +79,7 @@ class OAuth2(object):
         return prepare_grant_uri(uri=uri, client_id=client_id, response_type=response_type,
                                  redirect_uri=redirect_uri, scope=scope, state=state), state
 
-    async def start_server(self):
-        await self.bot.wait_until_ready()
+    async def start(self):
         await self.bot.loop.run_in_executor(None, oauth2_server, self.bot, self)
 
     async def handle_callback(self, code):
@@ -132,7 +125,6 @@ class OAuth2(object):
             # TODO Get summoner icon of the users league account.
             message = await user.send(embed=embed)
             await self.bot.get_cog('OptIn').optinate(message)
-            print(await self.bot.database.get_oauth_token(user_id))
         # It would only get to here if the user used an oauth link and
         # 'identify' wasn't in the scope. Therefore, this code is
         # useless as we could get the connections but wouldn't know

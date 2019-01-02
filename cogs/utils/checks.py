@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from ..error_handler import (
+from .errors import (
     NoConnectionFound
 )
 
@@ -16,4 +16,17 @@ def user_has_connection(connection):
             raise NoConnectionFound(connection)
         return True
 
+    return commands.check(predicate)
+
+def cog_is_ready(cog=None):
+    """
+    Checks to see if the cog is ready to run.
+    If a cog name is not provided, ctx.cog is used.
+    """
+    async def predicate(ctx):
+        cog = ctx.bot.get_cog(cog) if cog else ctx.cog
+        if not cog.is_ready:
+            raise CogNotReady(ctx)
+        return True
+    
     return commands.check(predicate)

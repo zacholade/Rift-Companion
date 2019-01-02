@@ -1,16 +1,16 @@
+from . import BaseCog
+
 import logging
 
 logger = logging.getLogger('root')
 
 
-class EmojiManager(object):
+class EmojiManager(BaseCog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         self._emoji_guild_pool = None
-        self.bot.loop.create_task(self.start())
 
     async def start(self):
-        await self.bot.wait_until_ready()
         emoji_guild_pool = []
         for guild_id in self.bot.config.discord_emoji_pool_guild_ids:
             guild = self.bot.get_guild(guild_id)
@@ -19,11 +19,6 @@ class EmojiManager(object):
             else:
                 logger.warn('guild with id: {} in discord_emoji_pool_guild_ids was not found'.format(guild_id))
         self._emoji_guild_pool = emoji_guild_pool
-
-    
-
-
-
 
 
 def setup(bot):

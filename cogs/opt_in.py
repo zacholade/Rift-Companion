@@ -1,15 +1,17 @@
-import discord
-from discord.ext import commands
+from . import BaseCog
 
 from .utils.checks import (
     user_has_connection
 )
 from .utils.assets import colour, assets
 
+import discord
+from discord.ext import commands
 
-class OptIn(object):
+
+class OptIn(BaseCog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         self.reaction_emojis = [
             ('\N{INBOX TRAY}', self._optin),
             ('\N{OUTBOX TRAY}', self._optout)
