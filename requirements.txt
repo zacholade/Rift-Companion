@@ -1,3 +1,1 @@
-cassiopeia
-cassiopeia-championgg
-cassiopeia-diskstore
+asyncpg

@@ -3,7 +3,6 @@ import typing
 import time
 import asyncio
 import aiohttp
-import datetime
 
 import discord
 from discord.ext import commands
