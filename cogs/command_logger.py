@@ -15,6 +15,7 @@ class CommandLogger(BaseCog):
             )""")
 
     async def on_command(self, ctx):
+        await self.wait_until_ready() # Ensure cog initilization has completed.
         command_name = ctx.command.qualified_name
         await self.bot.database.execute("""INSERT INTO commands (qualified_name, total_invokes)
                                 VALUES ($1, $2)

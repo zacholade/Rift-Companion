@@ -3,86 +3,114 @@ from . import BaseCog
 from .utils.errors import (
     NoConnectionFound
 )
+from .utils.utils import new_authorization_url
 from .utils.assets import colour, assets
 
 import typing
 import time
 import asyncio
-import aiohttp
-
+from aiohttp import web
 import discord
 from discord.ext import commands
-
-from flask import Flask, redirect, request
-from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
-from oauthlib.common import generate_token
 
 API_BASE_URL = 'https://discordapp.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
 
 
-def oauth2_server(bot, oauth2):
-    app = Flask(__name__)
-
-    @app.route('/')
-    def index():
-        return redirect(oauth2.authorization_url)
-
-    @app.route('/callback')
-    def callback():
-        if request.values.get('error'):
-            return request.values['error']
-        # TODO Implement state. Security vulnerability. 
-        # https://discordapp.com/developers/docs/topics/oauth2#state-and-security
-        # Supply state in args of the oauth2 request eg: &state=15773059ghq9183habn
-        # Check to see if the returned state in the callback is equal to the one sent.
-        # This state needs to be unique to the user. Issues happen when the user calls
-        # the 'iam' command to link. If other users use the same oauth2 link, they will
-        # have the wrong state and an error will be thrown.
-        code = request.args.get('code')
-        if not code:
-            return redirect('/')
-
-        bot.loop.create_task(oauth2.handle_callback(code))
-        return redirect('https://discord.gg/SNNaN2a') # TODO Dont hard code invite url.
-
-    app.run('0.0.0.0', port=oauth2.port, debug=False, use_reloader=False)
-
-
 class OAuth2(BaseCog):
     def __init__(self, bot):
         super().__init__(bot)
-
         self.client_secret = self.bot.config.DISCORD_CLIENT_SECRET
         self.redirect_uri = self.bot.config.DISCORD_REDIRECT_URI
         self.port = self.bot.config.OAUTH2_PORT
-        self.scope = 'identify connections'
+        self._scopes = ['identify', 'connections']
+
+        self.app = web.Application()
+        self.app.router.add_get('/', self.handle_index)
+        self.app.router.add_get('/oauth/discord', self.handle_oauth_discord)
+        self.runner = None
+
+        self.states = {} # Dict of key: hashed state and value, uses
+        print(self.scope)
 
     @property
-    def authorization_url(self):
-        """
-        Returns an authorization url with no state and parameters specific for the scope of this oauth2 cog.
-        """
-        return self.make_authorization_url(client_id=self.bot.user.id, response_type='code',
-                                           redirect_uri=self.redirect_uri, scope=self.scope)[0]
+    def scope(self):
+        return " ".join(self._scopes)
 
-    def make_authorization_url(self, uri=AUTHORIZATION_BASE_URL, client_id=None, response_type=None,
-                               redirect_uri=None, scope=None, state=None):
+    def new_authorization_url(self, state=None):
         """
-        Makes an authorization url with the provided parameters.
-        Returns:
-            :str:`authorization_url`
-            :str:`state`
+        Generates a new authorization url
+        Returns an authorization url with parameters specific for the scope of this oauth2 cog.
         """
-        return prepare_grant_uri(uri=uri, client_id=client_id, response_type=response_type,
-                                 redirect_uri=redirect_uri, scope=scope, state=state), state
+        url, state = new_authorization_url(AUTHORIZATION_BASE_URL, self.bot.user.id, response_type='code',
+                                           redirect_uri=self.redirect_uri, scope=self.scope, state=state)
+
+        if state not in self.states:
+            self.states[state] = 0
+
+        return url
 
     async def start(self):
-        await self.bot.loop.run_in_executor(None, oauth2_server, self.bot, self)
+        """
+        Starts the oauth2 server asynchronously.
+        """
+        self.runner = web.AppRunner(self.app)
+        await self.runner.setup()
+        site = web.TCPSite(self.runner, 'localhost', self.port)
+        await site.start()
+    
+    async def stop(self):
+        """
+        Stops the oauth2 server.
+        """
+        await self.runner.cleanup()
+        self.runner = None
 
-    async def handle_callback(self, code):
+    async def handle_index(self, request):
+        """
+        Called when route "/" is called.
+        """
+        return web.HTTPFound(self.new_authorization_url())
+
+    async def handle_oauth_discord(self, request):
+        """
+        Called when route "/oauth/discord" is called
+        """
+        code = request.rel_url.query.get('code')
+        state = request.rel_url.query.get('state')
+
+        if not code or not state:
+            # Code or state is not provided. They must go through code grant again.
+            self.logger.info('Received request at /oauth/discord but got no code or state.')
+            return web.HTTPFound(self.new_authorization_url())
+
+        if state not in self.states or self.states.get(state) > 3:
+            # True if state is not valid or state has been used > 3 times.
+            return web.HTTPFound(self.new_authorization_url())
+
         token = await self.exchange_code_for_token(code)
+
+        if not token:
+            # Code wasnt valid? Discord down?
+            return web.HTTPFound(self.new_authorization_url())
+
+        if not all(scope in token['scope'].split(' ') for scope in self._scopes):
+            # If both 'identify' and 'connections' not in the token's scope, it's useless..
+            return web.HTTPFound(self.new_authoriation_url())
+
+        self.states[state] += 1
+
+        # Handles new token concurrently to redirecting the user to the landing page
+        # for making a valid authorization with valid scope.
+        asyncio.ensure_future(self.handle_new_token(token))
+
+        return web.HTTPFound('https://discord.gg/SNNaN2a')
+
+    async def handle_new_token(self, token):
+        """
+        Called when a new token is aqcuired from the oauth2 flow.
+        """
         identity = await self.make_api_request(token, '/users/@me')
         connections = await self.make_api_request(token, '/users/@me/connections')
 
@@ -104,8 +132,8 @@ class OAuth2(BaseCog):
                        "    `2.` __On Discord__; head over to *User Settings > Connections.*\n"
                        "    `3.` Click on the League Icon and click Enable. *(shown below)*".format(user.display_name))
             description = """Once you have done this; [follow the authorization link again!]({1})\n
-            For anymore help, [join our support server.](https://discord.gg/SNNaN2a)""".format(user.display_name, self.authorization_url)
-            embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.authorization_url)
+            For anymore help, [join our support server.](https://discord.gg/SNNaN2a)""".format(user.display_name, self.new_authorization_url())
+            embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.new_authorization_url())
             embed.set_image(url=assets.get('connect_league_to_discord'))
             await user.send(content=content, embed=embed)
 
@@ -118,7 +146,7 @@ class OAuth2(BaseCog):
             description = (":link: Your League account, **{0}** has been linked successfully!\n\n"
                            ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis. "
                            "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name')) # TODO dont hardcore prefix
-            embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('green'), url=self.authorization_url)
+            embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('green'), url=self.new_authorization_url())
             embed.set_thumbnail(url=assets.get('l_icon'))
             embed.set_footer(text='You can opt-out at anytime...')
             # TODO Get summoner icon of the users league account.
@@ -128,7 +156,6 @@ class OAuth2(BaseCog):
         # 'identify' wasn't in the scope. Therefore, this code is
         # useless as we could get the connections but wouldn't know
         # who's discord account's they are...
-        return
 
     async def exchange_code_for_token(self, code):
         headers = {
@@ -160,9 +187,11 @@ class OAuth2(BaseCog):
         # Provide oauth2 link to allow access to view users connections and identify.
         # If a connection can be found, finish here and allow callback to handle rest... 
         # Otherwise, tell user how to add a connection and tell them to reuse this command when they have it added.
+        authorization_url = self.new_authorization_url()
+
         description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n\n"
-        "*Ensure your league account is connected to discord first.*".format(self.authorization_url))
-        embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.authorization_url)
+        "*Ensure your league account is connected to discord first.*".format(authorization_url))
+        embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=authorization_url)
         embed.set_image(url=assets.get('connections'))
         await ctx.send(embed=embed)
 

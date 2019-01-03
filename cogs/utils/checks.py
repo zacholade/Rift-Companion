@@ -28,10 +28,11 @@ def cog_is_ready(cog=None):
         _cog = ctx.bot.get_cog(cog) if cog else ctx.cog
 
         if not _cog:
-            raise ValueError('No cog with name {} could be found.'.fomat(str(cog)))
+            raise ValueError('No cog with name "{}" could be found.'.fomat(str(cog)))
 
         if not _cog.is_ready:
-            raise CogNotReady(ctx)
+            raise CogNotReady()
+
         return True
-    
+
     return commands.check(predicate)

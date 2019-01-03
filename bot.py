@@ -51,7 +51,7 @@ class RiftCompanion(LoggingMixin, commands.AutoShardedBot):
         super().__init__(
             command_prefix=commands.when_mentioned_or(config.discord_prefix), 
             description=description, case_insensitive=True, fetch_offline_members=True,
-        ) 
+        )
         super().remove_command('help')
         self.running = False
         self.debug_mode = config.debug_mode
@@ -62,7 +62,7 @@ class RiftCompanion(LoggingMixin, commands.AutoShardedBot):
                 self.load_extension(extension)
         except Exception as e:
             exc = '{}: {}'.format(type(e).__name__, e)
-            print('Failed to load extension {}\n{}'.format(extension, exc))
+            self.logger.error('Failed to load extension {}\n{}'.format(extension, exc))
             self.logger.error(traceback.format_exc())
 
     def run(self):
