@@ -7,7 +7,7 @@ class BaseCog(LoggingMixin):
     def __init__(self, bot):
         self.bot = bot
         self._is_ready = asyncio.Event(loop=self.bot.loop)
-        self.bot.loop.create_task(self._start())
+        self.bot.loop.create_task(self.__start())
 
     @property
     def is_ready(self):
@@ -37,7 +37,7 @@ class BaseCog(LoggingMixin):
 
         self._is_ready.clear()
 
-    async def _start(self):
+    async def __start(self):
         """
         This method wraps the start function.
         It waits for the bot to be ready before calling the start logic
