@@ -31,8 +31,7 @@ class OAuth2(BaseCog):
         self.app.router.add_get('/oauth/discord', self.handle_oauth_discord)
         self.runner = None
 
-        self.states = {} # Dict of key: hashed state and value, uses
-        print(self.scope)
+        self.states = {} # Dict of key: hashed state and value.
 
     @property
     def scope(self):
