@@ -14,28 +14,20 @@ import discord
 from discord.ext import commands
 
 API_BASE_URL = 'https://discordapp.com/api'
-AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
+AUTHORIZATION_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
+REVOKE_URL = API_BASE_URL + 'oauth2/token/revoke'
 
 
 class OAuth2(BaseCog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.client_secret = self.bot.config.DISCORD_CLIENT_SECRET
-        self.redirect_uri = self.bot.config.DISCORD_REDIRECT_URI
-        self.port = self.bot.config.OAUTH2_PORT
-        self._scopes = ['identify', 'connections']
-
         self.app = web.Application()
         self.app.router.add_get('/', self.handle_index)
         self.app.router.add_get('/oauth/discord', self.handle_oauth_discord)
         self.runner = None
 
         self.states = {} # Dict of key: hashed state and value.
-
-    @property
-    def scope(self):
-        return " ".join(self._scopes)
 
     def new_authorization_url(self, state=None):
         """
@@ -88,13 +80,14 @@ class OAuth2(BaseCog):
             # True if state is not valid or state has been used > 3 times.
             return web.HTTPFound(self.new_authorization_url())
 
-        token = await self.exchange_code_for_token(code)
+        code = DiscordOAuth2Code(code, self._scopes, session=self.bot.session)
+        token = code.exchange_for_token()
 
         if not token:
             # Code wasnt valid? Discord down?
             return web.HTTPFound(self.new_authorization_url())
 
-        if not all(scope in token['scope'].split(' ') for scope in self._scopes):
+        if not all(scope in token['scope'].split(' ') for scope in self.config.scopes):
             # If both 'identify' and 'connections' not in the token's scope, it's useless..
             return web.HTTPFound(self.new_authoriation_url())
 
@@ -161,6 +154,7 @@ class OAuth2(BaseCog):
             'Accept': 'application/json',
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         }
+
         data = {
             'client_id': self.bot.user.id,
             'client_secret': self.client_secret,
@@ -169,9 +163,11 @@ class OAuth2(BaseCog):
             'redirect_uri': self.redirect_uri,
             'scope': self.scope
         }
+
         async with self.bot.session.post(TOKEN_URL, data=data, headers=headers) as response:
             response.raise_for_status()
-            return await response.json()
+
+            await response.json()
 
     async def make_api_request(self, token, endpoint):
         user_id = None

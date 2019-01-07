@@ -1,9 +1,9 @@
-from bot import LoggingMixin
+from bot import LoggingMixin, ConfigMixin
 
 import asyncio
 
 
-class BaseCog(LoggingMixin):
+class BaseCog(LoggingMixin, ConfigMixin):
     def __init__(self, bot):
         self.bot = bot
         self._is_ready = asyncio.Event(loop=self.bot.loop)

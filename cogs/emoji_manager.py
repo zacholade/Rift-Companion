@@ -8,7 +8,7 @@ class EmojiManager(BaseCog):
 
     async def start(self):
         emoji_guild_pool = []
-        for guild_id in self.bot.config.discord_emoji_pool_guild_ids:
+        for guild_id in self.config.discord_emoji_pool_guild_ids:
             guild = self.bot.get_guild(guild_id)
             if guild:
                 emoji_guild_pool.append(guild)

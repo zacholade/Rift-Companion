@@ -46,15 +46,31 @@ class LoggingMixin(object):
         return logging.getLogger(name)
 
 
-class RiftCompanion(LoggingMixin, commands.AutoShardedBot):
+class ConfigMixin(object):
+    @property
+    def config(self):
+        """
+        Returns the bots config.py file
+        """
+        return __import__('config')
+
+    @property
+    def scope(self):
+        """
+        Returns a string representation of the scopes
+        """
+        return " ".join(self.config.scope)
+
+
+class RiftCompanion(LoggingMixin, ConfigMixin, commands.AutoShardedBot):
     def __init__(self):
         super().__init__(
-            command_prefix=commands.when_mentioned_or(config.discord_prefix), 
+            command_prefix=commands.when_mentioned_or(self.config.discord_prefix), 
             description=description, case_insensitive=True, fetch_offline_members=True,
         )
         super().remove_command('help')
         self.running = False
-        self.debug_mode = config.debug_mode
+        self.debug_mode = self.config.debug_mode
         self.session = aiohttp.ClientSession(loop=self.loop)
 
         try:
@@ -66,7 +82,7 @@ class RiftCompanion(LoggingMixin, commands.AutoShardedBot):
             self.logger.error(traceback.format_exc())
 
     def run(self):
-        super().run(config.discord_token, reconnect=True)
+        super().run(self.config.discord_token, reconnect=True)
 
     def load_extension(self, name):
         '''
@@ -86,10 +102,6 @@ class RiftCompanion(LoggingMixin, commands.AutoShardedBot):
 
         lib.setup(self)
         self.extensions[name] = lib
-
-    @property
-    def config(self):
-        return __import__('config')
 
     async def on_ready(self):
         if not hasattr(self, 'uptime'):
