@@ -115,6 +115,10 @@ class OAuth2(BaseCog):
 
         if user_id and not connection:
             user = self.bot.get_user(user_id)
+
+            if not user:
+                user = await self.bot.get_user_info(user_id)
+
             # TODO just raise NoConnectionFound('leagueoflegends') here instead..
             # However this is out of a command and calls the exception_handler func.
             # It's impossible to get ctx in exception_handler...
@@ -135,6 +139,10 @@ class OAuth2(BaseCog):
                 await self.bot.database.add_connection(user_id, connection)
 
             user = self.bot.get_user(user_id)
+
+            if not user:
+                user = await self.bot.get_user_info(user_id)
+
             description = (":link: Your League account, **{0}** has been linked successfully!\n\n"
                            ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis. "
                            "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name')) # TODO dont hardcore prefix
