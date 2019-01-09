@@ -16,6 +16,9 @@ Developed using Python 3.6.7
 
 **3) Create database**
 
+You may need to certify that postgresql service is running:
+`sudo service postgresql start`
+
 Using the psql tool.
 `sudo -u postgres psql postgres`
 ```sql
