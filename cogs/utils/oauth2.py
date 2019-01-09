@@ -4,7 +4,7 @@ import aiohttp
 
 
 API_BASE_URL = 'https://discordapp.com/api'
-AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
+AUTHORIZATION_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
 
  access_token, token_type, refresh_token, token_url,

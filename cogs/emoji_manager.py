@@ -13,7 +13,7 @@ class EmojiManager(BaseCog):
             if guild:
                 emoji_guild_pool.append(guild)
             else:
-                self.logger.warn('guild with id: {} in discord_emoji_pool_guild_ids was not found'.format(guild_id))
+                self.logger.warn(f'guild with id: {guild.id} in discord_emoji_pool_guild_ids was not found')
         self._emoji_guild_pool = emoji_guild_pool
 
 

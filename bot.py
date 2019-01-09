@@ -59,7 +59,7 @@ class ConfigMixin(object):
         """
         Returns a string representation of the scopes
         """
-        return " ".join(self.config.scope)
+        return " ".join(self.config.SCOPES)
 
 
 class RiftCompanion(LoggingMixin, ConfigMixin, commands.AutoShardedBot):
@@ -77,8 +77,8 @@ class RiftCompanion(LoggingMixin, ConfigMixin, commands.AutoShardedBot):
             for extension in extensions:
                 self.load_extension(extension)
         except Exception as e:
-            exc = '{}: {}'.format(type(e).__name__, e)
-            self.logger.error('Failed to load extension {}\n{}'.format(extension, exc))
+            exc = f'{type(e).__name__}: {e}'
+            self.logger.error(f'Failed to load extension {extension}\n{exc}')
             self.logger.error(traceback.format_exc())
 
     def run(self):
@@ -107,8 +107,8 @@ class RiftCompanion(LoggingMixin, ConfigMixin, commands.AutoShardedBot):
         if not hasattr(self, 'uptime'):
             self.uptime = datetime.datetime.utcnow()
 
-        print('Ready: {0} (ID: {1})'.format(self.user, self.user.id))
-        print('Discord Version: {0}'.format(discord.__version__))
+        print(f'Ready: {self.user} (ID: {self.user.id})')
+        print(f'Discord Version: {discord.__version__}')
         print('-----------------------')
 
         game = discord.Game('Testing...')
@@ -136,11 +136,11 @@ class RiftCompanion(LoggingMixin, ConfigMixin, commands.AutoShardedBot):
             formatted_time = time.strftime("%a %d %b at %H:%M GMT", time.gmtime(time.time()))
             if isinstance(ctx, discord.ext.commands.Context):
                 user = ctx.author
-                embed.set_footer(text='{0} | {1}'.format(user.display_name, formatted_time), icon_url=user.avatar_url)
+                embed.set_footer(text=f'{user.display_name,} | {formatted_time}', icon_url=user.avatar_url)
             elif isinstance(ctx, discord.TextChannel):
                 guild = ctx.guild
-                embed.set_footer(text='{0} | {1}'.format(guild.name, formatted_time), icon_url=guild.icon_url)
+                embed.set_footer(text=f'{guild.name} | {formatted_time}', icon_url=guild.icon_url)
             elif isinstance(ctx, discord.DMChannel):
                 user = ctx.recipient
-                embed.set_footer(text='{0} | {1}'.format(user.display_name, formatted_time), icon_url=user.avatar_url)
+                embed.set_footer(text=f'{user.display_name} | {formatted_time}', icon_url=user.avatar_url)
         return embed

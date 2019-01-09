@@ -34,8 +34,8 @@ class OAuth2(BaseCog):
         Generates a new authorization url
         Returns an authorization url with parameters specific for the scope of this oauth2 cog.
         """
-        url, state = new_authorization_url(AUTHORIZATION_BASE_URL, self.bot.user.id, response_type='code',
-                                           redirect_uri=self.redirect_uri, scope=self.scope, state=state)
+        url, state = new_authorization_url(AUTHORIZATION_URL, self.bot.user.id, response_type='code',
+                                           redirect_uri=self.config.DISCORD_REDIRECT_URI, scope=self.scope, state=state)
 
         if state not in self.states:
             self.states[state] = 0
@@ -48,7 +48,7 @@ class OAuth2(BaseCog):
         """
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        site = web.TCPSite(self.runner, 'localhost', self.port)
+        site = web.TCPSite(self.runner, 'localhost', self.config.OAUTH2_PORT)
         await site.start()
     
     async def stop(self):
@@ -122,13 +122,13 @@ class OAuth2(BaseCog):
             # TODO just raise NoConnectionFound('leagueoflegends') here instead..
             # However this is out of a command and calls the exception_handler func.
             # It's impossible to get ctx in exception_handler...
-            content = ("**Hey {0}!** I couldn't find a League account connected to your Discord profile?\n\n"
+            content = (f"**Hey {user.display_name}!** I couldn't find a League account connected to your Discord profile?\n\n"
                        "**To link an account;**\n"
                        "    `1.` Open and login to your __League Client__.\n"
                        "    `2.` __On Discord__; head over to *User Settings > Connections.*\n"
-                       "    `3.` Click on the League Icon and click Enable. *(shown below)*".format(user.display_name))
-            description = """Once you have done this; [follow the authorization link again!]({1})\n
-            For anymore help, [join our support server.](https://discord.gg/SNNaN2a)""".format(user.display_name, self.new_authorization_url())
+                       "    `3.` Click on the League Icon and click Enable. *(shown below)*")
+            description = f"""Once you have done this; [follow the authorization link again!]({self.new_authorization_url()})\n
+            For anymore help, [join our support server.](https://discord.gg/SNNaN2a)"""
             embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=self.new_authorization_url())
             embed.set_image(url=assets.get('connect_league_to_discord'))
             await user.send(content=content, embed=embed)
@@ -143,9 +143,9 @@ class OAuth2(BaseCog):
             if not user:
                 user = await self.bot.get_user_info(user_id)
 
-            description = (":link: Your League account, **{0}** has been linked successfully!\n\n"
+            description = (f":link: Your League account, **{connection.get('name')}** has been linked successfully!\n\n"
                            ":inbox_tray: You can now `opt-in` and receive **automatic** pre/post-game analysis. "
-                           "Alternatively, you can **manually** invoke the `!live` command.").format(connection.get('name')) # TODO dont hardcore prefix
+                           "Alternatively, you can **manually** invoke the `!live` command.") # TODO dont hardcore prefix
             embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('green'), url=self.new_authorization_url())
             embed.set_thumbnail(url=assets.get('l_icon'))
             embed.set_footer(text='You can opt-out at anytime...')
@@ -192,8 +192,8 @@ class OAuth2(BaseCog):
         # Otherwise, tell user how to add a connection and tell them to reuse this command when they have it added.
         authorization_url = self.new_authorization_url()
 
-        description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({})\n\n"
-        "*Ensure your league account is connected to discord first.*".format(authorization_url))
+        description = (":unlock: Unlock **exclusive features** by [linking your League account to me here.]({authorization_url})\n\n"
+        "*Ensure your league account is connected to discord first.*")
         embed = discord.Embed(title="League Account Linking", description=description, colour=colour.get('yellow'), url=authorization_url)
         embed.set_image(url=assets.get('connections'))
         await ctx.send(embed=embed)

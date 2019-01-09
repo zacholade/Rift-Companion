@@ -18,7 +18,7 @@ class CommunityDragon(object):
 
         for req_param in url_params:
             if req_param not in kwargs:
-                raise ValueError('parameter "{}" is required!'.format(req_param))
+                raise ValueError(f'parameter "{req_param}" is required!')
 
         return url.format(**kwargs)
 
