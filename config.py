@@ -5,12 +5,12 @@ debug_mode = True
 postgresql = 'postgresql://rcomp:password@localhost/rcomp'
 
 # API Keys
-riot_api_key = 'RGAPI-a1e35343-f66e-4756-80b7-646b0d7283e3'
-championgg_api_key = 'e31f13db144c076cfff59aaa189da26e'
+riot_api_key = '<insert riot api key here>'
+championgg_api_key = '<insert championgg key here>'
 
 # Discord
 discord_prefix = '!'
-discord_token = 'NTIxMTYzMjg0NDE4Nzg5Mzc2.Du4axQ.fye4-oAQJy3SEob4Q7afMoL7fOo'
+discord_token = '<insert token here>'
 discord_emoji_pool_guild_ids = [
     528327713438826497,
     528327793843503156,
