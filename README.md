@@ -1,3 +1,5 @@
+## NOTE: This project is not fully functional and is no longer being developed.
+
 ## What am I?
 
 Rift Companion is an intelligent Discord bot which provides you with vital information right as you need it!
