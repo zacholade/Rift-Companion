@@ -1,4 +1,5 @@
-## NOTE: This project is not fully functional and is no longer being developed.
+# NOTE: This project is not fully functional and is no longer being developed. It was a learning experiment with using asynchronous programming to make a Discord Bot which I later used to apply to other projects.
+
 
 ## What am I?
 
