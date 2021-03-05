@@ -29,7 +29,7 @@ discord_emoji_pool_guild_ids = [
 ]
 
 # OAuth2 for requesting access to a users connections
-DISCORD_CLIENT_SECRET = 'kpyepL2xrOQ2d1dq5QbEPh0WuVh9ss9B'
+DISCORD_CLIENT_SECRET = ''
 DISCORD_REDIRECT_URI = 'http://localhost:5006/callback' # This must be registered to the application
 SCOPES = ['identify', 'connections']
 OAUTH2_PORT = 5006
